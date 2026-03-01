@@ -1,3 +1,11 @@
+# Machine Learning Artifacts
 *.pkl
 models/
-old_models/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+
+# React / Node.js
+frontend/node_modules/
+frontend/dist/
