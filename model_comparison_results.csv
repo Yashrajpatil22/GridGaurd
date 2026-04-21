@@ -1,7 +1,0 @@
-Model,Test_Accuracy,Weighted_F1,CV_Accuracy,CV_Std,Train_Time_s
-XGBoost,96.56,0.9656,96.28,0.17,5.2
-LightGBM,96.34,0.9633,96.09,0.11,5.7
-Random Forest,96.32,0.9631,96.25,0.17,2.2
-GradientBoost (current),96.18,0.9627,96.31,0.17,138.9
-CatBoost,96.0,0.961,95.87,0.11,6.1
-Logistic Regression,95.31,0.9548,95.44,0.08,0.6
