@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import os
 from custom_model import CustomGridGuardClassifier
+from feature_engineering import engineer_features, ENG_COLS
 
 # ── Path to the saved model bundle ──
 MODEL_PATH = "gridguard_best_model.pkl"  # Final Best Model
@@ -41,6 +42,7 @@ def predict_project(
     land_row_status,
     forest_clearance_status,
     vendor_status,
+    months_elapsed=0,
     model_bundle=None,
     verbose=True,
 ):
@@ -49,17 +51,20 @@ def predict_project(
 
     Parameters
     ----------
-    project_type            : str  — '765kV Transmission Line' | '400kV Substation' | '220kV D/C Line'
-    region                  : str  — 'Northern' | 'Western' | 'Southern' | 'Eastern' | 'North-Eastern'
+    project_type            : str   — '765kV Transmission Line' | '400kV Transmission Line' | '400kV Substation' | '220kV D/C Line'
+    region                  : str   — 'Northern' | 'Western' | 'Southern' | 'Eastern' | 'North-Eastern'
     budget_cr               : float — Budget in Crore INR (100–5000)
     line_length_ckm         : float — Circuit kilometres (10–500)
-    planned_duration_months : int   — Original schedule (12–60)
-    physical_progress_pct   : float — % completion so far (0–100)
-    land_row_status         : str  — 'Clear' | 'Pending Local' | 'Disputed'
-    forest_clearance_status : str  — 'Approved' | 'Stage-I Awaited' | 'Stage-II Awaited'
-    vendor_status           : str  — 'On Track' | 'Equipment Delayed' | 'Insolvent'
-    model_bundle            : dict — pre-loaded bundle (loads from disk if None)
-    verbose                 : bool — print result card
+    planned_duration_months : int   — Original planned schedule (12–60)
+    physical_progress_pct   : float — % physical completion so far (0–100)
+    land_row_status         : str   — 'Clear' | 'Pending Local' | 'Disputed'
+    forest_clearance_status : str   — 'Approved' | 'Stage-II Awaited' | 'Stage-I Awaited'
+    vendor_status           : str   — 'On Track' | 'Equipment Delayed' | 'Insolvent'
+    months_elapsed          : int   — Months since project start (0 = unknown/not provided)
+                                      Providing this enables schedule-adherence features
+                                      and dramatically improves accuracy for ongoing projects.
+    model_bundle            : dict  — pre-loaded bundle (loads from disk if None)
+    verbose                 : bool  — print result card
 
     Returns
     -------
@@ -78,6 +83,7 @@ def predict_project(
     train_columns = model_bundle["train_columns"]
     num_cols = model_bundle["num_cols"]
     cat_cols = model_bundle["cat_cols"]
+    eng_cols = model_bundle.get("eng_cols", ENG_COLS)  # backward-compat
     risk_inv = model_bundle["risk_inv"]
 
     # ── Validate categorical inputs (Relaxed for free text) ────────
@@ -96,22 +102,31 @@ def predict_project(
         "vendor_status": vendor_status,
     }
 
-    # ── Convert dict to a single row DataFrame ──────────────────────
+    # ── Build raw single-row DataFrame ────────────────────────────────────
     row_data = {
-        "Budget_Cr": [float(budget_cr)],
-        "Line_Length_CKM": [float(line_length_ckm)],
+        "Budget_Cr":               [float(budget_cr)],
+        "Line_Length_CKM":         [float(line_length_ckm)],
         "Planned_Duration_Months": [float(planned_duration_months)],
-        "Physical_Progress_Pct": [float(physical_progress_pct)]
+        "Physical_Progress_Pct":   [float(physical_progress_pct)],
+        "months_elapsed":          [float(months_elapsed)],   # 0 = not provided
     }
     for py_key, df_col in col_map.items():
         row_data[df_col] = [inputs[py_key]]
-    
+
     df_new = pd.DataFrame(row_data)
 
-    # ── One-hot encode using the exact same columns as training ─────
-    df_encoded = pd.get_dummies(df_new, columns=cat_cols)
-    
-    # Fill missing one-hot variables gracefully using `train_columns` alignment
+    # ── Apply the same feature engineering used at training time ──────────
+    # months_elapsed is consumed inside engineer_features to compute
+    # schedule_adherence, progress_deficit, and months_behind_schedule.
+    df_new = engineer_features(df_new)
+
+    # ── One-hot encode categoricals ───────────────────────────────────────
+    df_encoded = pd.get_dummies(
+        df_new[num_cols + eng_cols + cat_cols],
+        columns=cat_cols,
+    )
+
+    # Align columns to exactly what the model was trained on
     for expected_col in train_columns:
         if expected_col not in df_encoded.columns:
             df_encoded[expected_col] = 0
@@ -129,13 +144,9 @@ def predict_project(
     class_order  = [risk_inv[i] for i in range(3)]
     risk_proba_d = {cls: round(float(p) * 100, 1) for cls, p in zip(class_order, risk_proba)}
 
-    # ── Heuristic Logic Consistency ──────────────────────────────
-    # Because 'Low' risk historical projects are extremely rare in the dataset (~1.5%), 
-    # the classifier favors 'Medium'. We enforce a business-logic override here:
-    # If the mathematical delay prediction is ~0, then Risk is unequivocally 'Low'.
-    if delay_pred <= 0.5:
-        risk_level = "Low"
-        risk_proba_d = {"Low": 98.0, "Medium": 2.0, "High": 0.0}
+    # ── No heuristic overrides needed ────────────────────────────────────
+    # The v2 classifier uses balanced class weights, so it now correctly
+    # learns the Low / Medium / High boundary from data — no manual patch.
 
     # ── Severity note ─────────────────────────────────────────────
     if vendor_status == "Insolvent":
