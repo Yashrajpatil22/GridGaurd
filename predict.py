@@ -138,6 +138,19 @@ def predict_project(
     delay_pred   = float(best_reg.predict(X_new_scaled)[0])
     delay_pred   = max(0.0, round(delay_pred, 1))
     
+    # ── Explainability (SHAP) ────────────────────────────────────
+    import shap
+    try:
+        explainer = shap.TreeExplainer(best_reg)
+        shap_explanation = explainer(X_new_scaled)
+        # To make plots readable, use the unscaled values and proper column names
+        shap_explanation.data = df_encoded.values
+        shap_explanation.feature_names = train_columns
+        shap_explanation_single = shap_explanation[0]
+    except Exception as e:
+        print(f"SHAP error: {e}")
+        shap_explanation_single = None
+    
     risk_enc     = int(best_clf.predict(X_new_scaled)[0])
     risk_level   = risk_inv[risk_enc]
     risk_proba   = best_clf.predict_proba(X_new_scaled)[0]
@@ -176,6 +189,7 @@ def predict_project(
         "risk_level": risk_level,
         "risk_probabilities": risk_proba_d,
         "severity_note": severity_note,
+        "shap_explanation": shap_explanation_single,
     }
 
     if verbose:

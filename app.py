@@ -132,3 +132,21 @@ if st.button("Predict Project Delay & Risk", type="primary", use_container_width
             st.warning(f"**⚠️ Advisory:** {result['severity_note']}")
         else:
             st.success(f"**✅ Advisory:** {result['severity_note']}")
+
+        # ── Explainability (SHAP Plot) ─────────────────────────────────────────
+        if result.get("shap_explanation") is not None:
+            st.divider()
+            st.subheader("🧠 Why this delay? (AI Explainability)")
+            st.info("The waterfall chart below shows exactly how much each factor added or subtracted from the base delay. **Red bars** increase the delay, **blue bars** decrease it.")
+            
+            import matplotlib.pyplot as plt
+            import shap
+            
+            # Create a larger figure to ensure labels aren't cut off
+            fig, ax = plt.subplots(figsize=(10, 6))
+            shap.plots.waterfall(result["shap_explanation"], max_display=10, show=False)
+            plt.tight_layout()
+            
+            st.pyplot(fig)
+            plt.clf()
+
