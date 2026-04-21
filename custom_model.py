@@ -110,7 +110,9 @@ if __name__ == "__main__":
     print("  CustomGridGuardClassifier — Standalone Evaluation")
     print("─" * 60)
 
-    df = pd.read_excel("dataset/GridGuard_Dataset_2000.xlsx", skiprows=2)
+    df = pd.read_csv("dataset/GridGuard_Dataset_50000.csv")
+    if "Time_Elapsed_Months" in df.columns:
+        df.rename(columns={"Time_Elapsed_Months": "months_elapsed"}, inplace=True)
 
     print("\n[INFO] Risk Level distribution:")
     print(df["Risk_Level"].value_counts().to_string())

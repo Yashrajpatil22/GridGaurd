@@ -24,8 +24,7 @@ except Exception as e:
     st.stop()
 
 # ── Valid category options (must match training data exactly) ─────────────────
-PROJECT_TYPES       = ["765kV Transmission Line", "400kV Transmission Line",
-                       "400kV Substation", "220kV D/C Line"]
+PROJECT_TYPES       = ["765kV Transmission Line", "400kV Substation", "220kV D/C Line"]
 REGIONS             = ["Northern", "Western", "Southern", "Eastern", "North-Eastern"]
 LAND_ROW_OPTIONS    = ["Clear", "Pending Local", "Disputed"]
 FOREST_OPTIONS      = ["Approved", "Stage-II Awaited", "Stage-I Awaited"]
