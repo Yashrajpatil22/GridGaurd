@@ -14,7 +14,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
-from custom_model import CustomGridGuardClassifier
+from custom_model import CustomGridGuardClassifier, XGBWrapper  # noqa: F401 — needed for pickle
 from feature_engineering import engineer_features, ENG_COLS
 
 # ── Path to the saved model bundle ──

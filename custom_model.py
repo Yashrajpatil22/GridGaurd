@@ -1,21 +1,20 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║     GRID-GUARD  |  Custom Risk Classifier  v2.0                  ║
+║     GRID-GUARD  |  Custom Risk Classifier  v3.0                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-v1 used K-Nearest Neighbours with Euclidean distance.
-Problem: KNN calculates distance on one-hot-encoded variables, which
-makes the "distance" between project types numerically meaningless.
+v3 upgrades the classifier to XGBoost (benchmark winner: 96.56%).
+The XGBWrapper class is defined HERE (not inside train_final.py) so
+that pickle/unpickle works correctly from ANY script (app.py, predict.py).
 
-v2 uses a Gradient Boosting ensemble:
-  • Decision trees natively handle mixed numeric + categorical features.
-  • Boosting iteratively focuses on hard-to-classify examples.
-  • compute_sample_weight("balanced") compensates for the class imbalance
-    (Low-risk projects are rare in the training set) without needing a
-    manual heuristic override in the prediction code.
+WHY THE WRAPPER EXISTS:
+  The saved .pkl bundle stores the classifier under key "classifier".
+  predict.py calls classifier.predict() and classifier.predict_proba().
+  XGBClassifier has these methods natively, so the wrapper is thin —
+  it just adds the .classes_ attribute that our predict.py reads.
 
 The PUBLIC API (fit / predict / predict_proba / classes_) is IDENTICAL
-to v1, so predict.py and app.py require ZERO changes.
+across all versions, so predict.py and app.py require ZERO changes.
 """
 
 import numpy as np
@@ -24,6 +23,31 @@ import pickle
 
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.utils.class_weight import compute_sample_weight
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# XGBWrapper — wraps XGBClassifier with the API predict.py expects
+# MUST live in this module (custom_model.py) so pickle can resolve it
+# from any calling script (app.py, train_final.py, predict.py, etc.)
+# ─────────────────────────────────────────────────────────────────────────────
+class XGBWrapper:
+    """
+    Thin wrapper around XGBClassifier that adds a .classes_ attribute.
+
+    Pickle-safe: because this class is defined at the TOP LEVEL of
+    custom_model.py (an importable module), Python can always find it
+    regardless of which script does the unpickling.
+    """
+
+    def __init__(self, xgb_model, classes):
+        self._model   = xgb_model
+        self.classes_ = np.array(classes)
+
+    def predict(self, X):
+        return self._model.predict(np.array(X))
+
+    def predict_proba(self, X):
+        return self._model.predict_proba(np.array(X))
 
 
 class CustomGridGuardClassifier:

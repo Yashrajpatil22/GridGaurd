@@ -44,7 +44,7 @@ except ImportError:
     print("[WARN] XGBoost not installed — falling back to GradientBoosting")
     print("       Install with: pip install xgboost")
 
-from custom_model import CustomGridGuardClassifier
+from custom_model import CustomGridGuardClassifier, XGBWrapper
 from feature_engineering import engineer_features, ENG_COLS
 
 HEADER = "=" * 62
@@ -53,7 +53,7 @@ HEADER = "=" * 62
 # 1. Load Data
 # ─────────────────────────────────────────────────────────────────────────────
 print(HEADER)
-print("  GRID-GUARD  |  Model Training Pipeline  v2.0")
+print("  GRID-GUARD  |  Model Training Pipeline  v3.0")
 print(HEADER)
 
 print("\n[1/7] Loading dataset ...")
@@ -146,17 +146,9 @@ if USE_XGB:
     )
     best_clf_model.fit(X_train_scaled, y_clf_train)
 
-    class _XGBWrapper:
-        """Thin wrapper so bundle stays compatible with predict.py API."""
-        def __init__(self, m, classes):
-            self._model  = m
-            self.classes_ = classes
-        def predict(self, X):
-            return self._model.predict(X)
-        def predict_proba(self, X):
-            return self._model.predict_proba(X)
-
-    best_clf = _XGBWrapper(best_clf_model, np.unique(y_clf_train))
+    # Use XGBWrapper from custom_model.py (NOT a local class) so that
+    # pickle can resolve it from any script that loads the .pkl file.
+    best_clf = XGBWrapper(best_clf_model, np.unique(y_clf_train))
 else:
     print("\n[5/7] Training Risk Classifier (GradientBoosting + balanced weights) ...")
     best_clf = CustomGridGuardClassifier(k=5)
