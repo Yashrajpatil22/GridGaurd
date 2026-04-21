@@ -14,17 +14,17 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
+from custom_model import CustomGridGuardClassifier
 
 # ── Path to the saved model bundle ──
-MODEL_PATH = "gridguard_rf_model.pkl"  # change path if needed
-
+MODEL_PATH = "gridguard_best_model.pkl"  # Final Best Model
 
 def load_model(path=MODEL_PATH):
     """Load the saved Grid-Guard model bundle."""
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"Model not found at '{path}'.\n"
-            "Run train_model_new.py first to train and save the model."
+            "Run train_final.py first to train and save the model."
         )
     with open(path, "rb") as f:
         bundle = pickle.load(f)
@@ -72,9 +72,12 @@ def predict_project(
     if model_bundle is None:
         model_bundle = load_model()
 
-    rf_reg   = model_bundle["rf_regressor"]
-    rf_clf   = model_bundle["rf_classifier"]
-    encoders = model_bundle["label_encoders"]
+    best_reg = model_bundle["regressor"]
+    best_clf = model_bundle["classifier"]
+    scaler = model_bundle["scaler"]
+    train_columns = model_bundle["train_columns"]
+    num_cols = model_bundle["num_cols"]
+    cat_cols = model_bundle["cat_cols"]
     risk_inv = model_bundle["risk_inv"]
 
     # ── Validate categorical inputs (Relaxed for free text) ────────
@@ -93,37 +96,46 @@ def predict_project(
         "vendor_status": vendor_status,
     }
 
-    # ── Encode (with unseen category fallback) ────────────────────
-    enc_vals = {}
-    for py_key, col in col_map.items():
-        le = encoders[col]
-        val = inputs[py_key]
-        if val in le.classes_:
-            enc_vals[py_key] = int(le.transform([val])[0])
-        else:
-            enc_vals[py_key] = 0  # Fallback to a default enc if text is mismatched
+    # ── Convert dict to a single row DataFrame ──────────────────────
+    row_data = {
+        "Budget_Cr": [float(budget_cr)],
+        "Line_Length_CKM": [float(line_length_ckm)],
+        "Planned_Duration_Months": [float(planned_duration_months)],
+        "Physical_Progress_Pct": [float(physical_progress_pct)]
+    }
+    for py_key, df_col in col_map.items():
+        row_data[df_col] = [inputs[py_key]]
+    
+    df_new = pd.DataFrame(row_data)
 
-    # ── Build feature vector ──────────────────────────────────────
-    X_new = np.array([[
-        float(budget_cr),
-        float(line_length_ckm),
-        float(planned_duration_months),
-        float(physical_progress_pct),
-        enc_vals["project_type"],
-        enc_vals["region"],
-        enc_vals["land_row_status"],
-        enc_vals["forest_clearance_status"],
-        enc_vals["vendor_status"],
-    ]])
+    # ── One-hot encode using the exact same columns as training ─────
+    df_encoded = pd.get_dummies(df_new, columns=cat_cols)
+    
+    # Fill missing one-hot variables gracefully using `train_columns` alignment
+    for expected_col in train_columns:
+        if expected_col not in df_encoded.columns:
+            df_encoded[expected_col] = 0
+
+    df_encoded = df_encoded[train_columns]
+    X_new_scaled = scaler.transform(df_encoded.values)
 
     # ── Predict ──────────────────────────────────────────────────
-    delay_pred   = float(rf_reg.predict(X_new)[0])
+    delay_pred   = float(best_reg.predict(X_new_scaled)[0])
     delay_pred   = max(0.0, round(delay_pred, 1))
-    risk_enc     = int(rf_clf.predict(X_new)[0])
+    
+    risk_enc     = int(best_clf.predict(X_new_scaled)[0])
     risk_level   = risk_inv[risk_enc]
-    risk_proba   = rf_clf.predict_proba(X_new)[0]
+    risk_proba   = best_clf.predict_proba(X_new_scaled)[0]
     class_order  = [risk_inv[i] for i in range(3)]
     risk_proba_d = {cls: round(float(p) * 100, 1) for cls, p in zip(class_order, risk_proba)}
+
+    # ── Heuristic Logic Consistency ──────────────────────────────
+    # Because 'Low' risk historical projects are extremely rare in the dataset (~1.5%), 
+    # the classifier favors 'Medium'. We enforce a business-logic override here:
+    # If the mathematical delay prediction is ~0, then Risk is unequivocally 'Low'.
+    if delay_pred <= 0.5:
+        risk_level = "Low"
+        risk_proba_d = {"Low": 98.0, "Medium": 2.0, "High": 0.0}
 
     # ── Severity note ─────────────────────────────────────────────
     if vendor_status == "Insolvent":
