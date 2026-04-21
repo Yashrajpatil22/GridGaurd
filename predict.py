@@ -14,7 +14,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
-from custom_model import CustomGridGuardClassifier
+from custom_model import CustomGridGuardClassifier, XGBWrapper  # noqa: F401 — needed for pickle
 from feature_engineering import engineer_features, ENG_COLS
 
 # ── Path to the saved model bundle ──
@@ -138,6 +138,37 @@ def predict_project(
     delay_pred   = float(best_reg.predict(X_new_scaled)[0])
     delay_pred   = max(0.0, round(delay_pred, 1))
     
+    # ── Explainability (SHAP) ────────────────────────────────────
+    import shap
+    try:
+        explainer = shap.TreeExplainer(best_reg)
+        shap_explanation = explainer(X_new_scaled)
+        # To make plots readable, use the unscaled values and proper column names
+        shap_explanation.data = df_encoded.values
+        
+        friendly_names = []
+        for col in train_columns:
+            if col.startswith("Project_Type_"):
+                friendly_names.append(f"Type: {col.replace('Project_Type_', '')}")
+            elif col.startswith("Region_"):
+                friendly_names.append(f"Region: {col.replace('Region_', '')}")
+            elif col.startswith("Land_RoW_Status_"):
+                friendly_names.append(f"RoW: {col.replace('Land_RoW_Status_', '')}")
+            elif col.startswith("Forest_Clearance_Status_"):
+                friendly_names.append(f"Forest: {col.replace('Forest_Clearance_Status_', '')}")
+            elif col.startswith("Vendor_Status_"):
+                friendly_names.append(f"Vendor: {col.replace('Vendor_Status_', '')}")
+            else:
+                c = col.replace("_", " ").title()
+                c = c.replace("Pct", "(%)").replace("Cr", "(₹Cr)").replace("Ckm", "(CKM)")
+                friendly_names.append(c)
+                
+        shap_explanation.feature_names = friendly_names
+        shap_explanation_single = shap_explanation[0]
+    except Exception as e:
+        print(f"SHAP error: {e}")
+        shap_explanation_single = None
+    
     risk_enc     = int(best_clf.predict(X_new_scaled)[0])
     risk_level   = risk_inv[risk_enc]
     risk_proba   = best_clf.predict_proba(X_new_scaled)[0]
@@ -176,6 +207,7 @@ def predict_project(
         "risk_level": risk_level,
         "risk_probabilities": risk_proba_d,
         "severity_note": severity_note,
+        "shap_explanation": shap_explanation_single,
     }
 
     if verbose:

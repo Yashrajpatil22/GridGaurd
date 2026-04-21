@@ -1,5 +1,38 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Trained model files ───────────────────────────────────────────────────────
+# .pkl files can be 10-500MB — never push to GitHub
+# Teammates run train_final.py to regenerate the model locally
 *.pkl
+
+# ── Dataset files ─────────────────────────────────────────────────────────────
+# The 50K CSV is 30MB — too large for GitHub without Git LFS
+# Push only if you set up Git LFS (git lfs track "*.csv")
+dataset/GridGuard_Dataset_70000.csv
+
+# Lock files left open by Excel
+dataset/~$*.xlsx
+
+# ── CatBoost training artifacts ───────────────────────────────────────────────
+catboost_info/
+
+# ── Benchmark / temp output ───────────────────────────────────────────────────
+model_comparison_results.csv
+
+# ── Old model directories ─────────────────────────────────────────────────────
 models/
 old_models/
-__pycache__/
-.venv/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
