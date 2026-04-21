@@ -1,3 +1,5 @@
 *.pkl
 models/
 old_models/
+__pycache__/
+.venv/
