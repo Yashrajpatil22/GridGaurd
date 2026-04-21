@@ -134,7 +134,7 @@ if __name__ == "__main__":
     print("  CustomGridGuardClassifier — Standalone Evaluation")
     print("─" * 60)
 
-    df = pd.read_csv("dataset/GridGuard_Dataset_50000.csv")
+    df = pd.read_csv("dataset/GridGuard_Dataset_70000.csv")
     if "Time_Elapsed_Months" in df.columns:
         df.rename(columns={"Time_Elapsed_Months": "months_elapsed"}, inplace=True)
 

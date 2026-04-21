@@ -24,7 +24,7 @@ except Exception as e:
     st.stop()
 
 # ── Valid category options (must match training data exactly) ─────────────────
-PROJECT_TYPES       = ["765kV Transmission Line", "400kV Substation", "220kV D/C Line"]
+PROJECT_TYPES       = ["765kV Transmission Line", "400kV Substation", "220kV D/C Line", "400kV D/C Line", "765kV D/C Line"]
 REGIONS             = ["Northern", "Western", "Southern", "Eastern", "North-Eastern"]
 LAND_ROW_OPTIONS    = ["Clear", "Pending Local", "Disputed"]
 FOREST_OPTIONS      = ["Approved", "Stage-II Awaited", "Stage-I Awaited"]
@@ -48,7 +48,8 @@ with col2:
     vendor_status = st.selectbox("Vendor Status", options=VENDOR_OPTIONS, index=0)
 
 # ── Months Elapsed (optional but highly recommended) ─────────────────────────
-st.markdown("### 🕐 Schedule Status *(optional but improves accuracy significantly)*")
+st.markdown("### 🕐 Schedule Status")
+st.info("💡 **Why this matters:** If you set this to `0`, the model treats the project as brand new or running neutrally. If you enter the **actual** elapsed months, the AI calculates mathematical schedule deviance, which drastically alters and improves the delay prediction!")
 
 months_elapsed = st.number_input(
     "Months Elapsed Since Project Start",
@@ -56,11 +57,6 @@ months_elapsed = st.number_input(
     max_value=120,
     value=0,
     step=1,
-    help=(
-        "How many months have passed since the project officially started? "
-        "Set to 0 if unknown. Providing this allows the model to detect if the "
-        "project is already running behind schedule."
-    ),
 )
 
 if months_elapsed > 0:
@@ -136,7 +132,7 @@ if st.button("Predict Project Delay & Risk", type="primary", use_container_width
         # ── Explainability (SHAP Plot) ─────────────────────────────────────────
         if result.get("shap_explanation") is not None:
             st.divider()
-            st.subheader("🧠 Why this delay? (AI Explainability)")
+            st.subheader("🧠 Why this delay?")
             st.info("The waterfall chart below shows exactly how much each factor added or subtracted from the base delay. **Red bars** increase the delay, **blue bars** decrease it.")
             
             import matplotlib.pyplot as plt

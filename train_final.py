@@ -57,7 +57,7 @@ print("  GRID-GUARD  |  Model Training Pipeline  v3.0")
 print(HEADER)
 
 print("\n[1/7] Loading dataset ...")
-df = pd.read_csv("dataset/GridGuard_Dataset_50000.csv")
+df = pd.read_csv("dataset/GridGuard_Dataset_70000.csv")
 print(f"      Loaded {len(df)} rows × {len(df.columns)} columns")
 
 print("\n[INFO] Risk Level distribution (before balancing):")

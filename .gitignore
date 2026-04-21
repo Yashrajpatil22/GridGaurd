@@ -16,7 +16,7 @@ env/
 # ── Dataset files ─────────────────────────────────────────────────────────────
 # The 50K CSV is 30MB — too large for GitHub without Git LFS
 # Push only if you set up Git LFS (git lfs track "*.csv")
-dataset/GridGuard_Dataset_50000.csv
+dataset/GridGuard_Dataset_70000.csv
 
 # Lock files left open by Excel
 dataset/~$*.xlsx

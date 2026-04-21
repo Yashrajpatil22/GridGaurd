@@ -145,7 +145,25 @@ def predict_project(
         shap_explanation = explainer(X_new_scaled)
         # To make plots readable, use the unscaled values and proper column names
         shap_explanation.data = df_encoded.values
-        shap_explanation.feature_names = train_columns
+        
+        friendly_names = []
+        for col in train_columns:
+            if col.startswith("Project_Type_"):
+                friendly_names.append(f"Type: {col.replace('Project_Type_', '')}")
+            elif col.startswith("Region_"):
+                friendly_names.append(f"Region: {col.replace('Region_', '')}")
+            elif col.startswith("Land_RoW_Status_"):
+                friendly_names.append(f"RoW: {col.replace('Land_RoW_Status_', '')}")
+            elif col.startswith("Forest_Clearance_Status_"):
+                friendly_names.append(f"Forest: {col.replace('Forest_Clearance_Status_', '')}")
+            elif col.startswith("Vendor_Status_"):
+                friendly_names.append(f"Vendor: {col.replace('Vendor_Status_', '')}")
+            else:
+                c = col.replace("_", " ").title()
+                c = c.replace("Pct", "(%)").replace("Cr", "(₹Cr)").replace("Ckm", "(CKM)")
+                friendly_names.append(c)
+                
+        shap_explanation.feature_names = friendly_names
         shap_explanation_single = shap_explanation[0]
     except Exception as e:
         print(f"SHAP error: {e}")

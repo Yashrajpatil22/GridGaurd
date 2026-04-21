@@ -62,8 +62,8 @@ print(HEADER)
 print("  GRID-GUARD  |  Multi-Model Benchmark")
 print(HEADER)
 
-print("\n[1/5] Loading GridGuard_Dataset_50000.csv ...")
-df = pd.read_csv("dataset/GridGuard_Dataset_50000.csv")
+print("\n[1/5] Loading GridGuard_Dataset_70000.csv ...")
+df = pd.read_csv("dataset/GridGuard_Dataset_70000.csv")
 print(f"      Loaded {len(df)} rows × {len(df.columns)} columns")
 
 # Rename the real column to what feature_engineering.py expects
