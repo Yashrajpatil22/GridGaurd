@@ -139,13 +139,16 @@ def predict_project(
     delay_pred   = max(0.0, round(delay_pred, 1))
     
     # ── Explainability (SHAP) ────────────────────────────────────
-    import shap
+    # SHAP is optional. If it's not installed, we skip explainability.
+    shap_explanation_single = None
     try:
+        import shap  # type: ignore
+
         explainer = shap.TreeExplainer(best_reg)
         shap_explanation = explainer(X_new_scaled)
         # To make plots readable, use the unscaled values and proper column names
         shap_explanation.data = df_encoded.values
-        
+
         friendly_names = []
         for col in train_columns:
             if col.startswith("Project_Type_"):
@@ -162,9 +165,11 @@ def predict_project(
                 c = col.replace("_", " ").title()
                 c = c.replace("Pct", "(%)").replace("Cr", "(₹Cr)").replace("Ckm", "(CKM)")
                 friendly_names.append(c)
-                
+
         shap_explanation.feature_names = friendly_names
         shap_explanation_single = shap_explanation[0]
+    except ModuleNotFoundError:
+        shap_explanation_single = None
     except Exception as e:
         print(f"SHAP error: {e}")
         shap_explanation_single = None

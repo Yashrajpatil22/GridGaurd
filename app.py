@@ -136,13 +136,18 @@ if st.button("Predict Project Delay & Risk", type="primary", use_container_width
             st.info("The waterfall chart below shows exactly how much each factor added or subtracted from the base delay. **Red bars** increase the delay, **blue bars** decrease it.")
             
             import matplotlib.pyplot as plt
-            import shap
+            try:
+                import shap  # type: ignore
+            except ModuleNotFoundError:
+                st.warning("SHAP is not installed in this environment, so the explanation plot is unavailable. Install it with: `e:/GridGaurd/.venv/Scripts/python.exe -m pip install shap`")
+                shap = None
             
             # Create a larger figure to ensure labels aren't cut off
-            fig, ax = plt.subplots(figsize=(10, 6))
-            shap.plots.waterfall(result["shap_explanation"], max_display=10, show=False)
-            plt.tight_layout()
-            
-            st.pyplot(fig)
-            plt.clf()
+            if shap is not None:
+                fig, ax = plt.subplots(figsize=(10, 6))
+                shap.plots.waterfall(result["shap_explanation"], max_display=10, show=False)
+                plt.tight_layout()
+
+                st.pyplot(fig)
+                plt.clf()
 
